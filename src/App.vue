@@ -33,6 +33,7 @@ import useSequenceFrameAnimate from '@/hooks/useSequenceFrameAnimate';
 // 2D标签渲染模块（实现CSS与WebGL混合渲染）
 import useCSS2DRender from '@/hooks/useCSS2DRender';
 import { linesData } from '../public/data/map/lines-data';
+import locationGif from '../public/data/map/location.gif';
 
 let centerXY = [106.59893798828125, 26.918846130371094];
 
@@ -259,16 +260,36 @@ export default {
       mapGroup.add(light);
     };
     // 创建标签
-    const initLabel = (city, scene) => {
-      if (!city.length) {
-        return false;
-      }
+    const initLabel = (city, group) => {
+      if (!city.length) return;
+
+      // 创建GIF纹理加载器
+      const gifLoader = new THREE.TextureLoader();
+
       city.forEach((item) => {
         // 设置标签的显示内容和位置
-        var label = create2DTag('标签', 'map-32-label');
-        scene.add(label);
-        let labelCenter = item.value; //centroid || properties.center
+        var label = create2DTag(item.name, 'map-32-label');
+
+        let labelCenter = [item.value[0] + 1, item.value[1] + 2]; //centroid || properties.center
         label.show(item.name, new THREE.Vector3(...labelCenter, 8));
+        group.add(label);
+        // 新增GIF标记
+        // const gifTexture = gifLoader.load(locationGif);
+        // let plane = new THREE.PlaneBufferGeometry(30, 30);
+        // const gifSprite = new THREE.MeshBasicMaterial({
+        //   map: gifTexture,
+        //   transparent: true,
+        //   opacity: 1,
+        //   depthTest: true,
+        // });
+        // let mesh = new THREE.Mesh(plane, gifSprite);
+
+        // mesh.position.set([item.value[0], item.value[1]]);
+
+        // 参数：x=1.1, y=1.1, z=1.1（XYZ轴等比缩放）
+        // mesh.scale.set(1.1, 1.1, 1.1);
+
+        // group.add(mesh);
       });
     };
     onMounted(async () => {
@@ -345,11 +366,10 @@ export default {
               this.mapGroup.add(city);
               // 创建标点和标签
               // initLightPoint(properties, this.mapGroup);
-              initLabel(linesData.city, this.scene);
             });
             // 创建上边框
             initBorderLine(worldData, this.mapGroup);
-
+            initLabel(linesData.city, this.mapGroup);
             let earthGroupBound = getBoundingBox(this.mapGroup);
             centerXY = [earthGroupBound.center.x, earthGroupBound.center.y];
             let { size } = earthGroupBound;
