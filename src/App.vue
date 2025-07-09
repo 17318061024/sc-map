@@ -32,6 +32,7 @@ import useMapMarkedLightPillar from '@/hooks/map/useMapMarkedLightPillar';
 import useSequenceFrameAnimate from '@/hooks/useSequenceFrameAnimate';
 // 2D标签渲染模块（实现CSS与WebGL混合渲染）
 import useCSS2DRender from '@/hooks/useCSS2DRender';
+import { linesData } from '../public/data/map/lines-data';
 
 let centerXY = [106.59893798828125, 26.918846130371094];
 
@@ -68,7 +69,7 @@ export default {
 
     // 创建Phong高光材质（用于3D模型顶部表面）
     const topFaceMaterial = new THREE.MeshPhongMaterial({
-      color: 0x6b8ab3, // 基础颜色
+      color: 0x162537, // 基础颜色
       combine: THREE.MultiplyOperation, // 材质混合模式（颜色相乘增强层次感）
       transparent: true, // 启用透明度支持
       opacity: 1, // 完全不透明（1=100% 不透明）
@@ -155,8 +156,8 @@ export default {
       let plane = new THREE.PlaneBufferGeometry(width * 4, width * 4);
       let material = new THREE.MeshPhongMaterial({
         // color: 0x061920,
-        color: 0xffffff,
-        map: sceneBg,
+        color: 0x383267,
+        // map: sceneBg,
         transparent: true,
         opacity: 1,
         depthTest: true,
@@ -223,27 +224,27 @@ export default {
         data,
         {
           color: 0xffffff,
-          linewidth: 0.002,
+          linewidth: 0.001,
           transparent: true,
           depthTest: false,
         },
         'Line2'
       );
       lineTop.position.z += 8;
-      let lineBottom = createCountryFlatLine(
-        data,
-        {
-          color: 0x99b2d3,
-          linewidth: 0.2,
-          // transparent: true,
-          depthTest: false,
-        },
-        'Line2'
-      );
-      lineBottom.position.z -= 0.1905;
+      // let lineBottom = createCountryFlatLine(
+      //   data,
+      //   {
+      //     color: 0x99b2d3,
+      //     linewidth: 0.2,
+      //     // transparent: true,
+      //     depthTest: false,
+      //   },
+      //   'Line2'
+      // );
+      // lineBottom.position.z -= 0.1905;
       //  添加边线
       mapGroup.add(lineTop);
-      mapGroup.add(lineBottom);
+      // mapGroup.add(lineBottom);
     };
     // 创建光柱
     const initLightPoint = (properties, mapGroup) => {
@@ -258,15 +259,17 @@ export default {
       mapGroup.add(light);
     };
     // 创建标签
-    const initLabel = (properties, scene) => {
-      if (!properties.centroid && !properties.center) {
+    const initLabel = (city, scene) => {
+      if (!city.length) {
         return false;
       }
-      // 设置标签的显示内容和位置
-      var label = create2DTag('标签', 'map-32-label');
-      scene.add(label);
-      let labelCenter = properties.center; //centroid || properties.center
-      label.show(properties.name, new THREE.Vector3(...labelCenter, 0.31));
+      city.forEach((item) => {
+        // 设置标签的显示内容和位置
+        var label = create2DTag('标签', 'map-32-label');
+        scene.add(label);
+        let labelCenter = item.value; //centroid || properties.center
+        label.show(item.name, new THREE.Vector3(...labelCenter, 8));
+      });
     };
     onMounted(async () => {
       // 四川数据
@@ -290,11 +293,7 @@ export default {
           // 贵州
           // this.camera.position.set(105.96420078859111, 20.405756412693812, 5.27483892390678) //相机在Three.js坐标系中的位置
           // 四川
-          this.camera.position.set(
-            102.97777217804006,
-            17.660260562607277,
-            8.029548316292933
-          ); //相机在Three.js坐标系中的位置
+          this.camera.position.set(0, -10, 250); //相机在Three.js坐标系中的位置
           this.camera.lookAt(...centerXY, 0);
         }
         initModel() {
@@ -339,15 +338,16 @@ export default {
                     topFaceMaterial,
                     sideMaterial,
                   ]);
+
                   city.add(mesh);
                 });
               });
               this.mapGroup.add(city);
               // 创建标点和标签
               // initLightPoint(properties, this.mapGroup);
-              initLabel(properties, this.scene);
+              initLabel(linesData.city, this.scene);
             });
-            // 创建上下边框
+            // 创建上边框
             initBorderLine(worldData, this.mapGroup);
 
             let earthGroupBound = getBoundingBox(this.mapGroup);
@@ -357,7 +357,7 @@ export default {
             // 添加背景，修饰元素
             // this.rotatingApertureMesh = initRotatingAperture(this.scene, width);
             // this.rotatingPointMesh = initRotatingPoint(this.scene, width - 2);
-            initCirclePoint(this.scene, width);
+            // initCirclePoint(this.scene, width);
             initSceneBg(this.scene, width);
 
             // 将组添加到场景中
@@ -417,7 +417,7 @@ export default {
             this.css2dRender.render(this.scene, this.camera);
           }
           // 粒子上升
-          if (this.particleArr.length) {
+          if (this.particleArr?.length) {
             for (let i = 0; i < this.particleArr.length; i++) {
               this.particleArr[i].updateSequenceFrame();
               this.particleArr[i].position.z += 0.01;

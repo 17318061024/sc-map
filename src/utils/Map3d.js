@@ -89,6 +89,7 @@ export default class Map3d {
     let { width, height, bgColor } = this.options;
     let renderer = new THREE.WebGLRenderer({
       antialias: true, // 锯齿
+      logarithmicDepthBuffer: true, // 对数深度缓冲
     });
     // 设置canvas的分辨率
     renderer.setPixelRatio(window.devicePixelRatio);
