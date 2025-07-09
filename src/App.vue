@@ -3,20 +3,35 @@
 </template>
 
 <script>
+// 3D地图核心模块（封装Three.js基础功能）
 import Map3d from '@/utils/Map3d.js';
+// 补间动画库（用于创建平滑过渡动画）
 import TWEEN from '@tweenjs/tween.js';
+// Three.js核心库（WebGL 3D渲染引擎）
 import * as THREE from 'three';
+// 可视化调试面板（用于实时调整场景参数）
 import { GUI } from 'three/examples/jsm/libs/lil-gui.module.min.js';
+
+// Vue3生命周期钩子
 import { onBeforeUnmount, onMounted } from 'vue';
+// 工具函数库（包含随机数生成等方法）
 import { random } from '@/utils';
+
+// 自定义hooks👇
+// 文件加载器（处理GeoJSON数据加载）
 import useFileLoader from '@/hooks/useFileLoader.js';
+// 国家边界处理模块（生成国界线几何体）
 import useCountry from '@/hooks/useCountry.js';
+// 坐标转换模块（WGS84 ↔ 平面坐标）
 import useCoord from '@/hooks/useCoord.js';
+// 地理数据标准化模块（统一不同来源的GeoJSON格式）
 import useConversionStandardData from '@/hooks/useConversionStandardData.js';
+// 光柱特效模块（创建地图标记点光柱效果）
 import useMapMarkedLightPillar from '@/hooks/map/useMapMarkedLightPillar';
+// 序列帧动画模块（处理粒子动画序列）
 import useSequenceFrameAnimate from '@/hooks/useSequenceFrameAnimate';
+// 2D标签渲染模块（实现CSS与WebGL混合渲染）
 import useCSS2DRender from '@/hooks/useCSS2DRender';
-import { worldMap } from '../public/data/map/world-map.js';
 
 let centerXY = [106.59893798828125, 26.918846130371094];
 
@@ -50,43 +65,49 @@ export default {
     const rotatingPointTexture = texture.load('/data/map/rotating-point2.png');
     const circlePoint = texture.load('/data/map/circle-point.png');
     const sceneBg = texture.load('/data/map/scene-bg2.png');
-    // textureMap.wrapS = texturefxMap.wrapS = THREE.RepeatWrapping
-    // textureMap.wrapT = texturefxMap.wrapT = THREE.RepeatWrapping
-    // textureMap.flipY = texturefxMap.flipY = false
-    // textureMap.rotation = texturefxMap.rotation = THREE.MathUtils.degToRad(45)
-    // const scale = 0.128
-    // textureMap.repeat.set(scale, scale)
-    // texturefxMap.repeat.set(scale, scale)
+
+    // 创建Phong高光材质（用于3D模型顶部表面）
     const topFaceMaterial = new THREE.MeshPhongMaterial({
-      // map: textureMap,
-      color: 0xb4eeea,
-      combine: THREE.MultiplyOperation,
+      color: 0x6b8ab3, // 基础颜色
+      combine: THREE.MultiplyOperation, // 材质混合模式（颜色相乘增强层次感）
+      transparent: true, // 启用透明度支持
+      opacity: 1, // 完全不透明（1=100% 不透明）
+    });
+    const sideMaterial = new THREE.MeshLambertMaterial({
+      color: 0x5c7699,
       transparent: true,
       opacity: 1,
     });
-    const sideMaterial = new THREE.MeshLambertMaterial({
-      color: 0x123024,
-      transparent: true,
-      opacity: 0.9,
-    });
     const bottomZ = -0.2;
-    // 初始化gui
+    // 可视化调试面板初始化函数
     const initGui = () => {
+      // 创建GUI调试面板实例
       const gui = new GUI();
+
+      // 调试参数配置对象
       const guiParams = {
-        topColor: '#b4eeea',
-        sideColor: '#123024',
-        scale: 0.1,
+        topColor: '#b40000', // 模型顶部颜色初始值
+        sideColor: '#120000', // 模型侧面颜色初始值
+        scale: 0.1, // 纹理缩放比例初始值
       };
+
+      // 添加顶部颜色调节控件
       gui.addColor(guiParams, 'topColor').onChange((val) => {
+        // 实时更新顶部材质颜色（HEX颜色值转换）
         topFaceMaterial.color = new THREE.Color(val);
       });
+
+      // 添加侧面颜色调节控件
       gui.addColor(guiParams, 'sideColor').onChange((val) => {
+        // 实时更新侧面材质颜色
         sideMaterial.color = new THREE.Color(val);
       });
+
+      // 添加纹理缩放比例滑动条（范围0-1）
       gui.add(guiParams, 'scale', 0, 1).onChange((val) => {
-        textureMap.repeat.set(val, val);
-        texturefxMap.repeat.set(val, val);
+        // 同步更新主纹理和特效纹理的重复比例
+        textureMap.repeat.set(val, val); // 基础纹理
+        texturefxMap.repeat.set(val, val); // 特效纹理
       });
     };
     // 初始化旋转光圈
@@ -98,9 +119,19 @@ export default {
         opacity: 1,
         depthTest: true,
       });
+      // 创建旋转光圈平面模型
+      // 参数说明：plane=几何体，material=纹理材质
       let mesh = new THREE.Mesh(plane, material);
+
+      // 设置光圈位置到地图中心点
+      // 参数：...centerXY=地图中心点坐标，0=Z轴高度（地表层级）
       mesh.position.set(...centerXY, 0);
+
+      // 缩放光圈尺寸（1.1倍于地图宽度）
+      // 参数：x=1.1, y=1.1, z=1.1（XYZ轴等比缩放）
       mesh.scale.set(1.1, 1.1, 1.1);
+
+      // 将光圈添加到3D场景中（使其可见）
       scene.add(mesh);
       return mesh;
     };
@@ -192,18 +223,18 @@ export default {
         data,
         {
           color: 0xffffff,
-          linewidth: 0.0015,
+          linewidth: 0.002,
           transparent: true,
           depthTest: false,
         },
         'Line2'
       );
-      lineTop.position.z += 0.305;
+      lineTop.position.z += 8;
       let lineBottom = createCountryFlatLine(
         data,
         {
-          color: 0x61fbfd,
-          linewidth: 0.002,
+          color: 0x99b2d3,
+          linewidth: 0.2,
           // transparent: true,
           depthTest: false,
         },
@@ -242,7 +273,8 @@ export default {
       let provinceData = await requestData('./data/map/四川省.json');
       provinceData = transfromGeoJSON(provinceData);
       //世界数据
-
+      let worldData = await requestData('./data/map/world-map.json');
+      worldData = transfromGeoJSON(worldData);
       // worldMap = transfromGeoJSON(worldMap);
 
       class CurrentMap3d extends Map3d {
@@ -272,9 +304,9 @@ export default {
             // 标签 初始化
             this.css2dRender = initCSS2DRender(this.options, this.container);
 
-            provinceData.features.forEach((elem, index) => {
+            worldData.features.forEach((elem, index) => {
               // 定一个省份对象
-              const province = new THREE.Object3D();
+              const city = new THREE.Object3D();
               // 坐标
               const coordinates = elem.geometry.coordinates;
               // city 属性
@@ -294,10 +326,10 @@ export default {
                   }
                   // 拉伸设置
                   const extrudeSettings = {
-                    depth: 0.2,
-                    bevelEnabled: true,
-                    bevelSegments: 1,
-                    bevelThickness: 0.1,
+                    depth: 8, // 控制3D模型垂直拉伸高度（单位：坐标系单位）
+                    bevelEnabled: true, // 启用边缘倒角效果（使模型边缘更圆润）
+                    bevelSegments: 1, // 倒角分段数（值越大边缘越平滑）
+                    bevelThickness: 0.1, // 倒角厚度（控制边缘斜面宽度）
                   };
                   const geometry = new THREE.ExtrudeGeometry(
                     shape,
@@ -307,30 +339,30 @@ export default {
                     topFaceMaterial,
                     sideMaterial,
                   ]);
-                  province.add(mesh);
+                  city.add(mesh);
                 });
               });
-              this.mapGroup.add(province);
+              this.mapGroup.add(city);
               // 创建标点和标签
-              initLightPoint(properties, this.mapGroup);
+              // initLightPoint(properties, this.mapGroup);
               initLabel(properties, this.scene);
             });
             // 创建上下边框
-            initBorderLine(provinceData, this.mapGroup);
+            initBorderLine(worldData, this.mapGroup);
 
             let earthGroupBound = getBoundingBox(this.mapGroup);
             centerXY = [earthGroupBound.center.x, earthGroupBound.center.y];
             let { size } = earthGroupBound;
             let width = size.x < size.y ? size.y + 1 : size.x + 1;
             // 添加背景，修饰元素
-            this.rotatingApertureMesh = initRotatingAperture(this.scene, width);
-            this.rotatingPointMesh = initRotatingPoint(this.scene, width - 2);
+            // this.rotatingApertureMesh = initRotatingAperture(this.scene, width);
+            // this.rotatingPointMesh = initRotatingPoint(this.scene, width - 2);
             initCirclePoint(this.scene, width);
             initSceneBg(this.scene, width);
 
             // 将组添加到场景中
             this.scene.add(this.mapGroup);
-            this.particleArr = initParticle(this.scene, earthGroupBound);
+            // this.particleArr = initParticle(this.scene, earthGroupBound);
             initGui();
           } catch (error) {
             console.log(error);
@@ -398,7 +430,7 @@ export default {
           // console.log(this.camera.position)
         }
         resize() {
-          super.resize();
+          // super.resize();
           // 这里是你自己业务上需要的code
           this.renderer.render(this.scene, this.camera);
           this.renderer.setPixelRatio(window.devicePixelRatio);
